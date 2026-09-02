@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Smart Media Manager
-Plugin URI: https://github.com/sibche2013/Smart-Media-Manager
+Plugin URI: https://demo.aminarjmand.com/Smart-Media-Manager/
 Description: جعبه‌ابزار کامل بهینه‌سازی تصاویر وردپرس: تبدیل خودکار به WebP/AVIF، کنترل سایز و کیفیت برای افزایش سرعت سایت، همراه با گالری لایتباکس حرفه‌ای (Fancybox).
 Version: 3.2
 Author: امین ارجمند
@@ -200,7 +200,7 @@ final class Plugin {
 
             // افزودن rel="noopener noreferrer" جهت امنیت تب‌های جدید
             $plugin_meta[] = '<a href="https://aminarjmand.com" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-blue">بدست امین ارجمند</a>';
-            $plugin_meta[] = '<a href="https://aminarjmand.com" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-green">دیدن خانهٔ افزونه</a>';
+            $plugin_meta[] = '<a href="https://demo.aminarjmand.com/Smart-Media-Manager/" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-green">دیدن خانهٔ افزونه</a>';
             $plugin_meta[] = '<a href="https://aminarjmand.com" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-red">سایت سازنده</a>';
         }
         return $plugin_meta;
