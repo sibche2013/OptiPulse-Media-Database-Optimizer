@@ -3,44 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Media Manager - Documentation</title>
+    <title>Smart Media & Database Optimizer - Documentation</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/vazirmatn-font-face.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 
     <style>
-        /* Developed by Amin Arjmand | aminarjmand.com */
+        /* Developed by Amin Arjmand | mohandeseit.com */
         :root {
-            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
-            --card-bg: rgba(255, 255, 255, 0.7);
-            --card-border: rgba(255, 255, 255, 0.4);
-            --text-main: #2c3e50;
-            --text-muted: #7f8c8d;
+            --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --card-border: rgba(226, 232, 240, 0.8);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
             --accent-color: #2563eb;
             --accent-hover: #1d4ed8;
-            --code-bg: rgba(0, 0, 0, 0.04);
-            --code-text: #e74c3c;
-            --shadow: rgba(31, 38, 135, 0.06);
+            --code-bg: rgba(0, 0, 0, 0.05);
+            --code-text: #dc2626;
+            --shadow: rgba(15, 23, 42, 0.08);
         }
 
         [data-theme="dark"] {
-            --bg-gradient: linear-gradient(135deg, #111827 0%, #1f2937 100%);
-            --card-bg: rgba(31, 41, 55, 0.7);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent-color: #3b82f6;
-            --accent-hover: #60a5fa;
-            --code-bg: rgba(255, 255, 255, 0.05);
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+            --code-bg: rgba(255, 255, 255, 0.08);
             --code-text: #f87171;
-            --shadow: rgba(0, 0, 0, 0.3);
+            --shadow: rgba(0, 0, 0, 0.4);
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
         }
 
         body {
@@ -59,10 +59,9 @@
 
         .container {
             width: 100%;
-            max-width: 950px;
+            max-width: 1000px;
         }
 
-        /* Top Controls Toolbar */
         .toolbar {
             display: flex;
             justify-content: flex-end;
@@ -79,19 +78,18 @@
             cursor: pointer;
             font-family: inherit;
             font-size: 0.9rem;
-            font-weight: 500;
+            font-weight: 600;
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 4px 10px var(--shadow);
+            box-shadow: 0 4px 12px var(--shadow);
         }
 
         .btn-control:hover {
             border-color: var(--accent-color);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
         }
 
-        /* Documentation Card */
         .doc-card {
             background: var(--card-bg);
             backdrop-filter: blur(16px);
@@ -102,7 +100,6 @@
             box-shadow: 0 20px 50px var(--shadow);
         }
 
-        /* Badges Area */
         .badge-wrapper {
             display: flex;
             justify-content: center;
@@ -118,15 +115,14 @@
             font-weight: 600;
             color: white;
             text-decoration: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
         }
 
         .badge-demo { background: #10b981; }
+        .badge-db { background: #8b5cf6; }
+        .badge-format { background: #f59e0b; }
         .badge-wp { background: #21759b; }
-        .badge-php { background: #6366f1; }
-        .badge-format { background: #f59e0b; color: #713f12; }
 
-        /* Typography */
         h1 {
             font-size: 2.2rem;
             text-align: center;
@@ -136,8 +132,8 @@
         }
 
         h2 {
-            font-size: 1.5rem;
-            margin: 40px 0 25px 0;
+            font-size: 1.45rem;
+            margin: 40px 0 22px 0;
             padding-bottom: 10px;
             border-bottom: 2px solid var(--card-border);
             color: var(--accent-color);
@@ -153,21 +149,20 @@
             margin-bottom: 15px;
         }
 
-        /* Features List Grid (Upgraded to multi-column) */
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+            gap: 18px;
             margin: 25px 0;
         }
 
         .feature-item {
-            background: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.5);
             border: 1px solid var(--card-border);
-            padding: 22px;
+            padding: 20px;
             border-radius: 16px;
             display: flex;
-            gap: 15px;
+            gap: 14px;
             align-items: flex-start;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
@@ -178,15 +173,15 @@
         }
 
         [data-theme="dark"] .feature-item {
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(15, 23, 42, 0.4);
         }
 
         .feature-icon {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             flex-shrink: 0;
             background: var(--card-bg);
-            width: 48px;
-            height: 48px;
+            width: 46px;
+            height: 46px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -198,17 +193,16 @@
             display: block;
             margin-bottom: 6px;
             color: var(--text-main);
-            font-size: 1.1rem;
+            font-size: 1.05rem;
         }
 
         .feature-text span {
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             color: var(--text-muted);
             line-height: 1.6;
             display: block;
         }
 
-        /* Conditional Language Display */
         .lang-en { display: none; }
         body.en .lang-fa { display: none; }
         body.en .lang-en { display: block; }
@@ -235,111 +229,183 @@
     <div class="doc-card">
         
         <div class="lang-fa">
-            <h1>🚀 مدیریت هوشمند رسانه وردپرس</h1>
-            <p style="text-align: center; margin-top: 10px; color: var(--text-muted)">Smart Media Manager - ابزار جامع بهینه‌سازی، تبدیل فرمت و ارتقای گالری تصاویر</p>
+            <h1>🚀 بهینه‌ساز هوشمند رسانه و دیتابیس</h1>
+            <p style="text-align: center; margin-top: 10px; color: var(--text-muted)">Smart Media & Database Optimizer - بسته سبک و همه‌کاره افزایش سرعت و سبک‌سازی وردپرس</p>
         </div>
         
         <div class="lang-en">
-            <h1>🚀 Smart Media Manager</h1>
-            <p style="text-align: center; margin-top: 10px; color: var(--text-muted)">The ultimate toolkit to optimize, convert, and enhance your WordPress media library</p>
+            <h1>🚀 Smart Media & Database Optimizer</h1>
+            <p style="text-align: center; margin-top: 10px; color: var(--text-muted)">All-in-one performance toolkit: WebP/AVIF converter, database cleaner, and Fancybox lightbox</p>
         </div>
 
         <div class="badge-wrapper">
-            <a href="https://demo.aminarjmand.com/Smart-Media-Manager/" target="_blank" class="badge badge-demo">⚡ Live Demo</a>
+            <a href="https://demo.aminarjmand.com/Smart-Media-Database-Optimizer/" target="_blank" class="badge badge-demo">⚡ Live Demo</a>
             <span class="badge badge-format">✨ WebP & AVIF Ready</span>
-            <span class="badge badge-wp">WordPress 5.0+</span>
-            <span class="badge badge-php">PHP 7.4 - 8.x</span>
+            <span class="badge badge-db">🗄️ MySQL & WooCommerce Cleaner</span>
+            <span class="badge badge-wp">WordPress 5.0 - 7.x</span>
         </div>
 
         <div class="lang-fa">
-            <p>افزونه <strong>Smart Media Manager</strong> یک ابزار پیشرفته، ایمن و بسیار سبک است که تمام نیازهای شما برای مدیریت تصاویر سایت (از فشرده‌سازی تا رابط کاربری گالری‌ها) را در یک پنل ساده برطرف می‌کند.</p>
+            <p>افزونه <strong>Smart Media & Database Optimizer</strong> یک راهکار جامع و بدون وابستگی جانبی برای ارتقای راندمان وردپرس است که دو گلوگاه بزرگ افت سرعت سایت یعنی <strong>تصاویر سنگین</strong> و <strong>پایگاه داده شلوغ</strong> را به شکل همزمان مدیریت می‌کند.</p>
 
-            <h2>✨ قابلیت‌های اصلی افزونه</h2>
+            <h2>✨ امکانات اصلی افزونه</h2>
             <div class="features-grid">
                 
                 <div class="feature-item">
                     <div class="feature-icon">⚡</div>
                     <div class="feature-text">
                         <strong>تبدیل خودکار به WebP و AVIF</strong>
-                        <span>تصاویر آپلودی شما در لحظه به فرمت‌های فوق‌فشرده و مدرن وب تبدیل می‌شوند تا سرعت سایت و سئو به شدت افزایش یابد.</span>
+                        <span>تبدیل درلحظه تصاویر آپلودی به فرمت‌های نسل جدید وب جهت کاهش حجم تا ۶۰٪ و بهبود محسوس امتیاز Core Web Vitals.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">🎛️</div>
                     <div class="feature-text">
-                        <strong>کنترل دقیق فشرده‌سازی (Quality)</strong>
-                        <span>امکان تنظیم درصد کیفیت فرمت‌های جدید (مثلاً ۸۰٪) برای کاهش حجم، در کنار قفل کردن کیفیت عکس‌های اورجینال روی ۱۰۰٪.</span>
+                        <strong>کنترل دقیق کیفیت فشرده‌سازی</strong>
+                        <span>امکان تنظیم درصد کیفیت فایل‌های خروجی همراه با قابلیت قفل کیفیت JPEG و PNG روی ۱۰۰٪ برای جلوگیری از افت جزئیات در برش‌ها.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">✂️</div>
                     <div class="feature-text">
-                        <strong>مهار سایزهای اضافی (ISQM)</strong>
-                        <span>جلوگیری از ساخته شدن ابعاد بلااستفاده توسط وردپرس یا قالب‌ها که موجب صرفه‌جویی عظیم در فضای هارد هاست شما می‌شود.</span>
+                        <strong>مهار برش‌های اضافه (ISQM)</strong>
+                        <span>انتخاب و مسدودسازی سایزهای پیش‌فرض و غیرضروری قالب‌ها جهت جلوگیری از اشغال بی‌رویه هارد دیسک سرور.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">🗄️</div>
+                    <div class="feature-text">
+                        <strong>پاک‌سازی جامع دیتابیس (MySQL Janitor)</strong>
+                        <span>حذف ایمن رونوشت‌ها (Revisions)، پیش‌نویس‌های خودکار، متادیتای یتیم پست‌ها، دیدگاه‌های اسپم/زباله‌دان و ترم‌های نامعتبر با AJAX.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-text">
+                        <strong>حذف ترنزینت‌های منقضی</strong>
+                        <span>تخلیه رکوردهای کش تاریخ‌گذشته و زباله‌های جا مانده در جدول <code>wp_options</code> برای تسریع زمان پاسخگویی پایگاه داده.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">🛠️</div>
+                    <div class="feature-text">
+                        <strong>دیفرگمنت و یکپارچه‌سازی جداول (OPTIMIZE)</strong>
+                        <span>آزادسازی فضای خالی و سربار (Overhead) دیسک موتور InnoDB و نوسازی ایندکس‌های ۸ جدول کلیدی وردپرس.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">🛒</div>
+                    <div class="feature-text">
+                        <strong>مدیریت لاگ‌های Action Scheduler ووکامرس</strong>
+                        <span>پاک‌سازی اکشن‌های تاریخ‌گذشته و امکان سفارشی‌سازی دوره نگهداری لاگ‌ها (مثلاً ۲ یا ۵ روز به جای ۳۰ روز پیش‌فرض).</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">
+                        <strong>تحلیلگر زنده بارگذاری Autoload</strong>
+                        <span>محاسبه لحظه‌ای حجم داده‌های Autoload در جدول گزینه‌ها و نمایش ۱۰ رکورد حجیم برای رفع کندی‌های مرموز سایت.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">🖼️</div>
                     <div class="feature-text">
-                        <strong>گالری لایت‌باکس (Fancybox)</strong>
-                        <span>تبدیل خودکار گالری‌های ساده وردپرس و المنتور به اسلایدرهای لمسی، مدرن و ریسپانسیو با استفاده از کتابخانه قدرتمند Fancybox.</span>
+                        <strong>گالری لایت‌باکس Fancybox</strong>
+                        <span>تبدیل خودکار گالری‌های وردپرس و المنتور به اسلایدر ریسپانسیو و لمسی با دکمه‌های زوم، بندانگشتی و تمام‌صفحه.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">🛡️</div>
                     <div class="feature-text">
-                        <strong>جایگزینی تصویر اصلی (Fallback)</strong>
-                        <span>سیستم هوشمند برای جلوگیری از خطای ۴۰۴ تصاویر شکسته در سایت. اگر سایز کوچکی پاک شده باشد، تصویر اصلی نمایش داده می‌شود.</span>
-                    </div>
-                </div>
-
-                <div class="feature-item">
-                    <div class="feature-icon">🧠</div>
-                    <div class="feature-text">
-                        <strong>بررسی هوشمند سرور و ویرایشگر</strong>
-                        <span>آنالیز زنده اکستنشن Imagick هاست شما برای جلوگیری از خطا، به همراه قابلیت غیرفعال‌سازی سریع ویرایشگر گوتنبرگ.</span>
+                        <strong>جایگزینی هوشمند تصویر (Fallback)</strong>
+                        <span>جلوگیری از نمایش تصویر شکسته و خطای ۴۰۴ با روت خودکار درخواست‌های سایز گمشده به تصویر اصلی.</span>
                     </div>
                 </div>
 
             </div>
 
-            <h2>🛠️ نحوه نصب و استفاده</h2>
-            <p>۱. پوشه افزونه را در مسیر <code>wp-content/plugins/</code> آپلود کنید.</p>
+            <h2>🛠️ راهنمای راه‌اندازی سریع</h2>
+            <p>۱. پوشه افزونه را در دایرکتوری <code>wp-content/plugins/</code> آپلود کنید.</p>
             <p>۲. افزونه را از بخش «افزونه‌ها» در پیشخوان وردپرس فعال کنید.</p>
-            <p>۳. برای اعمال تنظیمات، به منوی جدید <strong>رسانه &larr; Smart Media Manager</strong> مراجعه کنید.</p>
+            <p>۳. برای پیکربندی و پاک‌سازی، به منوی جدید <strong>بهینه‌ساز هوشمند</strong> در نوار اصلی پیشخوان مراجعه فرمایید.</p>
         </div>
 
         <div class="lang-en">
-            <p><strong>Smart Media Manager</strong> is an advanced, lightweight utility plugin designed for the WordPress Media Library, granting you full control over storage parameters, next-gen image conversion, and front-end gallery presentations.</p>
+            <p><strong>Smart Media & Database Optimizer</strong> is an all-in-one, zero-dependency WordPress optimization solution that addresses the two biggest performance bottlenecks: <strong>oversized media</strong> and <strong>bloated database tables</strong>.</p>
 
-            <h2>✨ Core Plugin Features</h2>
+            <h2>✨ Core Features</h2>
             <div class="features-grid">
                 
                 <div class="feature-item">
                     <div class="feature-icon">⚡</div>
                     <div class="feature-text">
                         <strong>Auto WebP & AVIF Conversion</strong>
-                        <span>Instantly convert uploaded images to ultra-compressed next-gen formats to drastically boost page speed and core web vitals.</span>
+                        <span>Converts image uploads to next-gen formats on the fly, cutting file weight by up to 60% and boosting Core Web Vitals.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">🎛️</div>
                     <div class="feature-text">
-                        <strong>Precision Quality Control</strong>
-                        <span>Adjust the compression percentage for next-gen formats while keeping original JPG/PNG uploads at 100% lossless quality.</span>
+                        <strong>Granular Compression Control</strong>
+                        <span>Customize output compression quality with GD and Imagick support, plus lossless 100% ratios for native uploads.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">✂️</div>
                     <div class="feature-text">
-                        <strong>Thumbnail Layout Control (ISQM)</strong>
-                        <span>List and disable intermediate image sizes generated by active themes or plugins, heavily decreasing host disk space usage.</span>
+                        <strong>Thumbnail Crop Janitor (ISQM)</strong>
+                        <span>Disable unwanted intermediate crop sizes generated by themes and core to prevent server disk bloat.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">🗄️</div>
+                    <div class="feature-text">
+                        <strong>Full MySQL Janitor & Cleanup</strong>
+                        <span>Purge post revisions, auto-drafts, orphaned postmeta, spam comments, and broken taxonomy relations via asynchronous AJAX.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-text">
+                        <strong>Expired Transients Cleaner</strong>
+                        <span>Purge timed-out transients and orphaned timeout entries to keep <code>wp_options</code> lightweight and fast.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">🛠️</div>
+                    <div class="feature-text">
+                        <strong>InnoDB Table Defragmentation</strong>
+                        <span>Reclaim disk overhead and rebuild indexes across 8 critical WordPress tables with single-click table optimization.</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">🛒</div>
+                    <div class="feature-text">
+                        <strong>WooCommerce Action Scheduler Pruning</strong>
+                        <span>Clear complete, failed, and canceled actions and configure custom log retention windows (e.g., 2 to 30 days).</span>
+                    </div>
+                </div>
+
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">
+                        <strong>Real-time Autoload Diagnostics</strong>
+                        <span>Live footprint calculation of <code>wp_options</code> autoload size with a breakdown of the top 10 heaviest entries.</span>
                     </div>
                 </div>
 
@@ -347,37 +413,29 @@
                     <div class="feature-icon">🖼️</div>
                     <div class="feature-text">
                         <strong>Fancybox Lightbox Integration</strong>
-                        <span>Automatically detects basic WordPress or Elementor image galleries and wraps them into premium touch-responsive Fancybox sliders.</span>
+                        <span>Automatically wraps standard WordPress and Elementor galleries into touch-friendly, responsive modal sliders.</span>
                     </div>
                 </div>
 
                 <div class="feature-item">
                     <div class="feature-icon">🛡️</div>
                     <div class="feature-text">
-                        <strong>Smart Image Fallback Pipeline</strong>
-                        <span>Intercepts broken front-end images (404 errors) and substitutes missing target sizes with the master original image source automatically.</span>
-                    </div>
-                </div>
-
-                <div class="feature-item">
-                    <div class="feature-icon">🧠</div>
-                    <div class="feature-text">
-                        <strong>Server Diagnostics & Classic Editor</strong>
-                        <span>Automatically detects Imagick extension compatibility for safe conversions, plus a one-click toggle to disable Gutenberg block editor.</span>
+                        <strong>Safe Asset Fallback Pipeline</strong>
+                        <span>Prevents 404 broken image containers by routing requests for missing intermediate crops directly to master files.</span>
                     </div>
                 </div>
 
             </div>
 
-            <h2>🛠️ Installation Steps</h2>
-            <p>1. Upload the plugin directory to your <code>wp-content/plugins/</code> folder.</p>
+            <h2>🛠️ Quick Setup</h2>
+            <p>1. Upload the plugin folder to your <code>wp-content/plugins/</code> directory.</p>
             <p>2. Activate the plugin via the 'Plugins' menu in your WordPress dashboard.</p>
-            <p>3. Navigate to the dashboard link: <strong>Media &larr; Smart Media Manager</strong> to configure options.</p>
+            <p>3. Access settings via the new top-level admin menu: <strong>Smart Optimizer</strong> (بهینه‌ساز هوشمند).</p>
         </div>
 
         <div style="margin-top: 50px; text-align: center; border-top: 1px solid var(--card-border); padding-top: 25px;">
             <p style="font-size: 0.95rem; color: var(--text-muted); text-align: center;">
-                Developed with 💚 by <a href="https://aminarjmand.com" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">Amin Arjmand</a>
+                Developed with 💚 by <a href="https://aminarjmand.com" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">Amin Arjmand</a> | <a href="https://mohandeseit.com" target="_blank" style="color: var(--accent-color); text-decoration: none; font-weight: 600;">Mohandese IT</a>
             </p>
         </div>
 
@@ -385,7 +443,6 @@
 </div>
 
 <script>
-    // 1. Theme Toggle Logic
     function toggleTheme() {
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const targetTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -397,7 +454,6 @@
         document.getElementById('btn-theme').innerHTML = `☀️ <span class="lang-fa">${btnTextFa}</span><span class="lang-en">${btnTextEn}</span>`;
     }
 
-    // 2. Multilingual Switcher Logic
     function toggleLanguage() {
         const isEnglish = document.body.classList.toggle('en');
         if (isEnglish) {
@@ -422,7 +478,6 @@
 </div>
 
 <style>
-    /* استایل دکمه‌های شناور */
     .floating-nav-container {
         position: fixed;
         bottom: 25px;
@@ -431,7 +486,7 @@
         flex-direction: column;
         gap: 12px;
         z-index: 99999;
-        direction: rtl; /* برای هماهنگی متن فارسی */
+        direction: rtl;
     }
 
     .floating-btn {
@@ -450,13 +505,13 @@
     }
 
     .btn-back-home {
-        background: linear-gradient(135deg, #2c3e50, #34495e);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, #0f172a, #334155);
+        border: 1px solid rgba(255, 255, 255, 0.12);
     }
 
     .btn-github-repo {
-        background: linear-gradient(135deg, #24292e, #4c5157);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, #1e293b, #475569);
+        border: 1px solid rgba(255, 255, 255, 0.12);
     }
 
     .floating-btn:hover {
@@ -481,10 +536,9 @@
 </style>
 
 <script>
-    // اسکریپت هوشمند برای تشخیص خودکار نام مخزن و ساخت لینک گیت‌هاب
     (function() {
         const pathSegments = window.location.pathname.split('/').filter(segment => segment !== "");
-        const repoName = pathSegments.length > 0 ? pathSegments[0] : "";
+        const repoName = pathSegments.length > 0 ? pathSegments[0] : "Smart-Media-Database-Optimizer";
         const githubBtn = document.getElementById('dynamic-github-btn');
         
         if (repoName) {
