@@ -3,7 +3,7 @@
 Plugin Name: OptiPulse: Media & Database Optimizer
 Plugin URI: https://demo.aminarjmand.com/OptiPulse-Media-Database-Optimizer/
 Description: جعبه‌ابزار کامل بهینه‌سازی تصاویر و دیتابیس وردپرس: تبدیل خودکار به WebP/AVIF، کنترل سایز و کیفیت، گالری لایتباکس (Fancybox) و پاک‌سازی جداول دیتابیس.
-Version: 4.5
+Version: 4.7
 Author: امین ارجمند
 Author URI: https://mohandeseit.com
 License: GPLv2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Plugin {
 
-    public const VERSION = '4.5';
+    public const VERSION = '4.7';
 
     private static ?Plugin $instance = null;
 
@@ -223,208 +223,50 @@ final class Plugin {
             }
         ";
         wp_add_inline_style( 'cfm-admin-settings-css', $admin_css );
+    }
 
-        wp_register_script( 'cfm-admin-settings-js', false, [], self::VERSION, true );
-        wp_enqueue_script( 'cfm-admin-settings-js' );
+    public function ajax_save_media_settings(): void {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'دسترسی امنیتی غیرمجاز است.' ] );
+        }
 
-        $admin_js = <<<'JS'
-        document.addEventListener('DOMContentLoaded', function() {
-            var isqmBox = document.querySelector('input[name="enable_isqm"]');
-            var isqmSection = document.getElementById('cfm-isqm-settings');
-            var formatSelect = document.getElementById('cfm_convert_format');
-            var qualityWrapper = document.getElementById('cfm-quality-wrapper');
+        check_ajax_referer( 'cfm_settings_nonce', 'cfm_settings_nonce_field' );
 
-            if (isqmBox && isqmSection) {
-                isqmBox.addEventListener('change', function() {
-                    if (this.checked) {
-                        isqmSection.style.display = 'block';
-                        setTimeout(function() { isqmSection.style.opacity = '1'; }, 10);
-                    } else {
-                        isqmSection.style.opacity = '0';
-                        setTimeout(function() { isqmSection.style.display = 'none'; }, 300);
-                    }
-                });
-                isqmSection.style.opacity = isqmBox.checked ? '1' : '0';
+        $supports_webp = wp_image_editor_supports( [ 'mime_type' => 'image/webp' ] );
+        $supports_avif = wp_image_editor_supports( [ 'mime_type' => 'image/avif' ] );
+
+        update_option( self::OPTION_ENABLE_ISQM, ! empty( $_POST['enable_isqm'] ) ? 1 : 0, 'no' );
+        update_option( self::OPTION_ENABLE_FANCY, ! empty( $_POST['enable_fancybox'] ) ? 1 : 0, 'yes' );
+        update_option( self::OPTION_ENABLE_FALLBACK, ! empty( $_POST['enable_fallback'] ) ? 1 : 0, 'yes' );
+
+        if ( ! empty( $_POST['enable_isqm'] ) ) {
+            $disabled_sizes = ! empty( $_POST['disabled_image_sizes'] ) ? array_map( 'sanitize_key', (array) $_POST['disabled_image_sizes'] ) : [];
+            update_option( self::OPTION_DISABLED_SIZES, $disabled_sizes, 'no' );
+
+            update_option( self::OPTION_ISQM_JPEG, ! empty( $_POST['cfm_jpeg_100'] ) ? 100 : 90, 'no' );
+            update_option( self::OPTION_ISQM_PNG,  ! empty( $_POST['cfm_png_100'] ) ? 100 : 90, 'no' );
+
+            $convert_format = isset( $_POST['cfm_convert_format'] ) ? sanitize_key( $_POST['cfm_convert_format'] ) : 'none';
+            if ( ( 'webp' === $convert_format && ! $supports_webp ) || ( 'avif' === $convert_format && ! $supports_avif ) ) {
+                $convert_format = 'none';
             }
-
-            if (formatSelect && qualityWrapper) {
-                formatSelect.addEventListener('change', function() {
-                    if (this.value === 'webp' || this.value === 'avif') {
-                        qualityWrapper.style.display = 'flex';
-                    } else {
-                        qualityWrapper.style.display = 'none';
-                    }
-                });
+            if ( ! in_array( $convert_format, [ 'none', 'webp', 'avif' ], true ) ) {
+                $convert_format = 'none';
             }
+            update_option( self::OPTION_CONVERT_FORMAT, $convert_format, 'no' );
 
-            var mediaForm = document.getElementById('cfm-media-settings-form');
-            var mediaSaveBtn = document.getElementById('cfm-save-media-btn');
-            var mediaNotice = document.getElementById('cfm-media-ajax-notice');
+            $convert_quality = isset( $_POST['cfm_convert_quality'] ) ? absint( $_POST['cfm_convert_quality'] ) : 80;
+            $convert_quality = max( 1, min( 100, $convert_quality ) );
+            update_option( self::OPTION_CONVERT_QUALITY, $convert_quality, 'no' );
 
-            if (mediaForm) {
-                mediaForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    mediaSaveBtn.disabled = true;
-                    mediaSaveBtn.innerText = 'در حال ذخیره...';
-                    mediaNotice.style.display = 'none';
+            $disable_guten = ! empty( $_POST['cfm_disable_gutenberg'] ) ? 1 : 0;
+            update_option( self::OPTION_DISABLE_GUTEN, $disable_guten, 'no' );
+            update_option( 'classic-editor-replace', $disable_guten ? 'classic' : false );
+        }
 
-                    var formData = new FormData(mediaForm);
-                    formData.append('action', 'cfm_save_media_settings');
+        delete_transient( 'cfm_all_image_sizes' );
 
-                    fetch(ajaxurl, { method: 'POST', body: formData })
-                    .then(function(res) { return res.json(); })
-                    .then(function(data) {
-                        mediaSaveBtn.disabled = false;
-                        mediaSaveBtn.innerText = 'ذخیره تنظیمات';
-                        mediaNotice.style.display = 'block';
-                        if (data.success) {
-                            mediaNotice.className = 'notice notice-success is-dismissible';
-                            mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
-                            setTimeout(function() {
-                                mediaNotice.style.transition = 'opacity 0.5s ease';
-                                mediaNotice.style.opacity = '0';
-                                setTimeout(function() { mediaNotice.style.display = 'none'; mediaNotice.style.opacity = '1'; }, 500);
-                            }, 4000);
-                        } else {
-                            mediaNotice.className = 'notice notice-error is-dismissible';
-                            mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
-                        }
-                    })
-                    .catch(function() {
-                        mediaSaveBtn.disabled = false;
-                        mediaSaveBtn.innerText = 'ذخیره تنظیمات';
-                        mediaNotice.style.display = 'block';
-                        mediaNotice.className = 'notice notice-error is-dismissible';
-                        mediaNotice.innerHTML = '<p>خطا در برقراری ارتباط با سرور.</p>';
-                    });
-                });
-            }
-
-            var asSaveBtn = document.getElementById('cfm-save-as-btn');
-            var asInput = document.getElementById('cfm_as_retention_input');
-            var asResponse = document.getElementById('cfm-as-card-response');
-            var asNonce = window.cfmAdminVars ? window.cfmAdminVars.asNonce : '';
-
-            if (asSaveBtn && asInput && asResponse) {
-                asSaveBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    asSaveBtn.disabled = true;
-                    asResponse.style.display = 'block';
-                    asResponse.className = 'cfm-card-response loading';
-                    asResponse.innerText = 'در حال ذخیره دوره نگهداری...';
-
-                    var params = new URLSearchParams();
-                    params.append('action', 'cfm_save_as_retention');
-                    params.append('days', asInput.value);
-                    params.append('security', asNonce);
-
-                    fetch(ajaxurl, { method: 'POST', body: params })
-                    .then(function(res) { return res.json(); })
-                    .then(function(data) {
-                        asSaveBtn.disabled = false;
-                        if (data.success) {
-                            asResponse.className = 'cfm-card-response success';
-                            asResponse.innerText = '✅ ' + data.data.message;
-                            setTimeout(function() { asResponse.style.display = 'none'; }, 3500);
-                        } else {
-                            asResponse.className = 'cfm-card-response error';
-                            asResponse.innerText = '❌ ' + data.data.message;
-                        }
-                    })
-                    .catch(function() {
-                        asSaveBtn.disabled = false;
-                        asResponse.className = 'cfm-card-response error';
-                        asResponse.innerText = '❌ خطا در ارسال درخواست به سرور.';
-                    });
-                });
-            }
-
-            var modal = document.getElementById('cfm-confirm-modal');
-            var modalDesc = document.getElementById('cfm-modal-desc');
-            var modalConfirm = document.getElementById('cfm-modal-confirm');
-            var modalCancel = document.getElementById('cfm-modal-cancel');
-            var pendingCallback = null;
-
-            function openConfirmModal(text, callback) {
-                modalDesc.innerText = text;
-                pendingCallback = callback;
-                modal.classList.add('active');
-            }
-
-            function closeModal() {
-                modal.classList.remove('active');
-                pendingCallback = null;
-            }
-
-            if (modalCancel && modalConfirm) {
-                modalCancel.addEventListener('click', closeModal);
-                modalConfirm.addEventListener('click', function() {
-                    if (typeof pendingCallback === 'function') {
-                        pendingCallback();
-                    }
-                    closeModal();
-                });
-            }
-
-            var dbButtons = document.querySelectorAll('.cfm-ajax-db-btn');
-            var dbNonce = window.cfmAdminVars ? window.cfmAdminVars.dbNonce : '';
-
-            dbButtons.forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var confirmMsg = btn.getAttribute('data-confirm');
-                    var action = btn.getAttribute('data-action');
-                    var card = btn.closest('.cfm-db-card-item');
-                    var responseBox = card.querySelector('.cfm-card-response');
-
-                    function runAction() {
-                        btn.disabled = true;
-                        responseBox.style.display = 'block';
-                        responseBox.className = 'cfm-card-response loading';
-                        responseBox.innerText = '⏳ در حال اجرای عملیات پاک‌سازی دیتابیس...';
-
-                        var params = new URLSearchParams();
-                        params.append('action', 'cfm_execute_db_action');
-                        params.append('db_action', action);
-                        params.append('security', dbNonce);
-
-                        fetch(ajaxurl, { method: 'POST', body: params })
-                        .then(function(res) { return res.json(); })
-                        .then(function(data) {
-                            btn.disabled = false;
-                            if (data.success) {
-                                responseBox.className = 'cfm-card-response success';
-                                responseBox.innerText = '✅ ' + data.data.message;
-                            } else {
-                                responseBox.className = 'cfm-card-response error';
-                                responseBox.innerText = '❌ ' + data.data.message;
-                            }
-                        })
-                        .catch(function() {
-                            btn.disabled = false;
-                            responseBox.className = 'cfm-card-response error';
-                            responseBox.innerText = '❌ خطا در ارسال درخواست به سرور.';
-                        });
-                    }
-
-                    if (confirmMsg) {
-                        openConfirmModal(confirmMsg, runAction);
-                    } else {
-                        runAction();
-                    }
-                });
-            });
-        });
-        JS;
-
-        wp_add_inline_script( 'cfm-admin-settings-js', $admin_js );
-
-        $inline_vars = sprintf(
-            'window.cfmAdminVars = { dbNonce: %s, asNonce: %s };',
-            wp_json_encode( wp_create_nonce( 'cfm_db_optimization_nonce' ) ),
-            wp_json_encode( wp_create_nonce( 'cfm_as_retention_nonce' ) )
-        );
-        wp_add_inline_script( 'cfm-admin-settings-js', $inline_vars, 'before' );
+        wp_send_json_success( [ 'message' => 'تنظیمات رسانه با موفقیت ذخیره شد.' ] );
     }
 
     public function ajax_save_as_retention(): void {
@@ -896,6 +738,209 @@ final class Plugin {
                 </div>
             </div>
         </div>
+
+        <script>
+        (function() {
+            var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+            var dbNonce = <?php echo wp_json_encode( wp_create_nonce( 'cfm_db_optimization_nonce' ) ); ?>;
+            var asNonce = <?php echo wp_json_encode( wp_create_nonce( 'cfm_as_retention_nonce' ) ); ?>;
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var isqmBox = document.querySelector('input[name="enable_isqm"]');
+                var isqmSection = document.getElementById('cfm-isqm-settings');
+                var formatSelect = document.getElementById('cfm_convert_format');
+                var qualityWrapper = document.getElementById('cfm-quality-wrapper');
+
+                if (isqmBox && isqmSection) {
+                    isqmBox.addEventListener('change', function() {
+                        if (this.checked) {
+                            isqmSection.style.display = 'block';
+                            setTimeout(function() { isqmSection.style.opacity = '1'; }, 10);
+                        } else {
+                            isqmSection.style.opacity = '0';
+                            setTimeout(function() { isqmSection.style.display = 'none'; }, 300);
+                        }
+                    });
+                    isqmSection.style.opacity = isqmBox.checked ? '1' : '0';
+                }
+
+                if (formatSelect && qualityWrapper) {
+                    formatSelect.addEventListener('change', function() {
+                        if (this.value === 'webp' || this.value === 'avif') {
+                            qualityWrapper.style.display = 'flex';
+                        } else {
+                            qualityWrapper.style.display = 'none';
+                        }
+                    });
+                }
+
+                var mediaForm = document.getElementById('cfm-media-settings-form');
+                var mediaSaveBtn = document.getElementById('cfm-save-media-btn');
+                var mediaNotice = document.getElementById('cfm-media-ajax-notice');
+
+                if (mediaForm) {
+                    mediaForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        mediaSaveBtn.disabled = true;
+                        mediaSaveBtn.innerText = 'در حال ذخیره...';
+                        mediaNotice.style.display = 'none';
+
+                        var formData = new FormData(mediaForm);
+                        formData.append('action', 'cfm_save_media_settings');
+
+                        fetch(ajaxUrl, { method: 'POST', body: formData })
+                        .then(function(res) {
+                            if (!res.ok) { throw new Error('Network error'); }
+                            return res.json();
+                        })
+                        .then(function(data) {
+                            mediaSaveBtn.disabled = false;
+                            mediaSaveBtn.innerText = 'ذخیره تنظیمات';
+                            mediaNotice.style.display = 'block';
+                            if (data.success) {
+                                mediaNotice.className = 'notice notice-success is-dismissible';
+                                mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
+                                setTimeout(function() {
+                                    mediaNotice.style.transition = 'opacity 0.5s ease';
+                                    mediaNotice.style.opacity = '0';
+                                    setTimeout(function() { mediaNotice.style.display = 'none'; mediaNotice.style.opacity = '1'; }, 500);
+                                }, 4000);
+                            } else {
+                                mediaNotice.className = 'notice notice-error is-dismissible';
+                                mediaNotice.innerHTML = '<p>' + (data.data && data.data.message ? data.data.message : 'خطایی رخ داد.') + '</p>';
+                            }
+                        })
+                        .catch(function(err) {
+                            mediaSaveBtn.disabled = false;
+                            mediaSaveBtn.innerText = 'ذخیره تنظیمات';
+                            mediaNotice.style.display = 'block';
+                            mediaNotice.className = 'notice notice-error is-dismissible';
+                            mediaNotice.innerHTML = '<p>خطا در برقراری ارتباط با سرور.</p>';
+                        });
+                    });
+                }
+
+                var asSaveBtn = document.getElementById('cfm-save-as-btn');
+                var asInput = document.getElementById('cfm_as_retention_input');
+                var asResponse = document.getElementById('cfm-as-card-response');
+
+                if (asSaveBtn && asInput && asResponse) {
+                    asSaveBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        asSaveBtn.disabled = true;
+                        asResponse.style.display = 'block';
+                        asResponse.className = 'cfm-card-response loading';
+                        asResponse.innerText = 'در حال ذخیره دوره نگهداری...';
+
+                        var params = new URLSearchParams();
+                        params.append('action', 'cfm_save_as_retention');
+                        params.append('days', asInput.value);
+                        params.append('security', asNonce);
+
+                        fetch(ajaxUrl, { method: 'POST', body: params })
+                        .then(function(res) {
+                            if (!res.ok) { throw new Error('Network error'); }
+                            return res.json();
+                        })
+                        .then(function(data) {
+                            asSaveBtn.disabled = false;
+                            if (data.success) {
+                                asResponse.className = 'cfm-card-response success';
+                                asResponse.innerText = '✅ ' + data.data.message;
+                                setTimeout(function() { asResponse.style.display = 'none'; }, 3500);
+                            } else {
+                                asResponse.className = 'cfm-card-response error';
+                                asResponse.innerText = '❌ ' + (data.data && data.data.message ? data.data.message : 'خطا رخ داد.');
+                            }
+                        })
+                        .catch(function() {
+                            asSaveBtn.disabled = false;
+                            asResponse.className = 'cfm-card-response error';
+                            asResponse.innerText = '❌ خطا در ارسال درخواست به سرور.';
+                        });
+                    });
+                }
+
+                var modal = document.getElementById('cfm-confirm-modal');
+                var modalDesc = document.getElementById('cfm-modal-desc');
+                var modalConfirm = document.getElementById('cfm-modal-confirm');
+                var modalCancel = document.getElementById('cfm-modal-cancel');
+                var pendingCallback = null;
+
+                function openConfirmModal(text, callback) {
+                    modalDesc.innerText = text;
+                    pendingCallback = callback;
+                    modal.classList.add('active');
+                }
+
+                function closeModal() {
+                    modal.classList.remove('active');
+                    pendingCallback = null;
+                }
+
+                if (modalCancel && modalConfirm) {
+                    modalCancel.addEventListener('click', closeModal);
+                    modalConfirm.addEventListener('click', function() {
+                        if (typeof pendingCallback === 'function') {
+                            pendingCallback();
+                        }
+                        closeModal();
+                    });
+                }
+
+                var dbButtons = document.querySelectorAll('.cfm-ajax-db-btn');
+
+                dbButtons.forEach(function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var confirmMsg = btn.getAttribute('data-confirm');
+                        var action = btn.getAttribute('data-action');
+                        var card = btn.closest('.cfm-db-card-item');
+                        var responseBox = card.querySelector('.cfm-card-response');
+
+                        function runAction() {
+                            btn.disabled = true;
+                            responseBox.style.display = 'block';
+                            responseBox.className = 'cfm-card-response loading';
+                            responseBox.innerText = '⏳ در حال اجرای عملیات پاک‌سازی دیتابیس...';
+
+                            var params = new URLSearchParams();
+                            params.append('action', 'cfm_execute_db_action');
+                            params.append('db_action', action);
+                            params.append('security', dbNonce);
+
+                            fetch(ajaxUrl, { method: 'POST', body: params })
+                            .then(function(res) {
+                                if (!res.ok) { throw new Error('Network error'); }
+                                return res.json();
+                            })
+                            .then(function(data) {
+                                btn.disabled = false;
+                                if (data.success) {
+                                    responseBox.className = 'cfm-card-response success';
+                                    responseBox.innerText = '✅ ' + data.data.message;
+                                } else {
+                                    responseBox.className = 'cfm-card-response error';
+                                    responseBox.innerText = '❌ ' + (data.data && data.data.message ? data.data.message : 'خطا در عملیات.');
+                                }
+                            })
+                            .catch(function() {
+                                btn.disabled = false;
+                                responseBox.className = 'cfm-card-response error';
+                                responseBox.innerText = '❌ خطا در ارسال درخواست به سرور.';
+                            });
+                        }
+
+                        if (confirmMsg) {
+                            openConfirmModal(confirmMsg, runAction);
+                        } else {
+                            runAction();
+                        }
+                    });
+                });
+            });
+        })();
+        </script>
         <?php
     }
 
@@ -986,6 +1031,9 @@ final class Plugin {
 
         $saved_image = $editor->save( $new_dest_path, $target_mime );
 
+        // آزادسازی آبجکت ادیتور جهت کاهش فشار بر رم
+        unset( $editor );
+
         if ( is_wp_error( $saved_image ) ) return $upload;
 
         if ( $saved_image['path'] !== $upload['file'] ) {
@@ -1042,6 +1090,11 @@ final class Plugin {
         if ( ! get_option( self::OPTION_ENABLE_FALLBACK ) ) return $return;
 
         $attachment_id = (int) $attachment_id;
+
+        // مهار نشت حافظه با پاکسازی کش استاتیک در صورت عبور از سقف مجاز
+        if ( count( self::$fallback_memory_cache ) > 200 ) {
+            self::$fallback_memory_cache = [];
+        }
 
         if ( ! isset( self::$fallback_memory_cache[ $attachment_id ] ) ) {
             self::$fallback_memory_cache[ $attachment_id ] = [

@@ -4,7 +4,7 @@ Donate link: https://mohandeseit.com/
 Tags: database optimizer, image optimization, webp, avif, fancybox
 Requires at least: 5.0
 Tested up to: 7.1
-Stable tag: 4.5
+Stable tag: 4.7
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -48,7 +48,7 @@ The plugin supports both PHP GD and Imagick, dynamically testing whether your ho
 
 == Changelog ==
 
-= 4.4 =
+= 4.7 =
 * Updated plugin display name to "OptiPulse: Media & Database Optimizer" and slug to "optipulse-media-database-optimizer".
 * Updated namespace and text domain to reflect the new identifier.
 * Enforced non-blocking admin script enqueuing using wp_add_inline_style and wp_add_inline_script.
