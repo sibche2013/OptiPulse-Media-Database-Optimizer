@@ -1,10 +1,10 @@
-=== Smart Media & Database Optimizer ===
-Contributors: aminarjmand
+=== OptiPulse: Media & Database Optimizer ===
+Contributors: aminarj2000gmailcom, aminarjmand
 Donate link: https://mohandeseit.com/
 Tags: database optimizer, image optimization, webp, avif, fancybox
 Requires at least: 5.0
 Tested up to: 7.1
-Stable tag: 4.1
+Stable tag: 4.5
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ All-in-one WordPress performance toolkit: WebP/AVIF converter, database cleaner,
 
 == Description ==
 
-Smart Media & Database Optimizer is a lightweight, all-in-one performance toolkit engineered to speed up your website by optimizing media assets and cleaning database overhead without third-party dependencies.
+OptiPulse: Media & Database Optimizer is a lightweight, all-in-one performance toolkit engineered to speed up your website by optimizing media assets and cleaning database overhead without third-party dependencies.
 
 **Key Features:**
 
@@ -31,7 +31,7 @@ Smart Media & Database Optimizer is a lightweight, all-in-one performance toolki
 
 == Installation ==
 
-1. Upload the plugin folder to `/wp-content/plugins/smart-media-database-optimizer/` directory or install directly via the WordPress Plugins dashboard.
+1. Upload the plugin folder to `/wp-content/plugins/optipulse-media-database-optimizer/` directory or install directly via the WordPress Plugins dashboard.
 2. Activate the plugin.
 3. Access the panel via the top-level dashboard menu: **Smart Optimizer** (بهینه‌ساز هوشمند).
 
@@ -48,8 +48,8 @@ The plugin supports both PHP GD and Imagick, dynamically testing whether your ho
 
 == Changelog ==
 
-= 4.0 =
-* Fixed PHPCS DirectDatabaseQuery and PreparedSQL warnings with verified sanitization and inline ignores.
-* Fixed SQL table name injection warnings via backtick wrapping and whitelist verification.
-* Replaced non-compliant set_time_limit with wp_raise_memory_limit.
-* Fixed readme.txt WordPress version compatibility header and limited tags to 5 items.
+= 4.4 =
+* Updated plugin display name to "OptiPulse: Media & Database Optimizer" and slug to "optipulse-media-database-optimizer".
+* Updated namespace and text domain to reflect the new identifier.
+* Enforced non-blocking admin script enqueuing using wp_add_inline_style and wp_add_inline_script.
+* Ensured zero database interpolation warnings across all direct optimization queries.

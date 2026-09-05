@@ -1,19 +1,19 @@
 <?php
 /*
-Plugin Name: Smart Media & Database Optimizer
-Plugin URI: https://demo.aminarjmand.com/Smart-Media-Database-Optimizer/
+Plugin Name: OptiPulse: Media & Database Optimizer
+Plugin URI: https://demo.aminarjmand.com/optipulse-media-database-optimizer/
 Description: جعبه‌ابزار کامل بهینه‌سازی تصاویر و دیتابیس وردپرس: تبدیل خودکار به WebP/AVIF، کنترل سایز و کیفیت، گالری لایتباکس (Fancybox) و پاک‌سازی جداول دیتابیس.
-Version: 4.1
+Version: 4.5
 Author: امین ارجمند
 Author URI: https://mohandeseit.com
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
-Text Domain: smart-media-database-optimizer
+Text Domain: optipulse-media-database-optimizer
 Requires at least: 5.0
 Requires PHP: 7.4
 */
 
-namespace SmartMediaDatabaseOptimizer;
+namespace OptiPulseMediaDatabaseOptimizer;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class Plugin {
 
-    public const VERSION = '4.1';
+    public const VERSION = '4.5';
 
     private static ?Plugin $instance = null;
 
@@ -36,6 +36,8 @@ final class Plugin {
     public const OPTION_CONVERT_QUALITY  = 'cfm_convert_quality';
     public const OPTION_AS_RETENTION     = 'cfm_as_retention_days';
 
+    private static array $fallback_memory_cache = [];
+
     public static function instance(): Plugin {
         if ( null === self::$instance ) {
             self::$instance = new self();
@@ -49,6 +51,7 @@ final class Plugin {
 
     private function init_hooks(): void {
         add_action( 'admin_menu', [ $this, 'register_admin_menu' ] );
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
 
         add_action( 'after_switch_theme', [ $this, 'clear_image_sizes_transient' ] );
         add_action( 'activated_plugin', [ $this, 'clear_image_sizes_transient' ], 10, 2 );
@@ -59,7 +62,7 @@ final class Plugin {
         add_action( 'wp_ajax_cfm_save_as_retention', [ $this, 'ajax_save_as_retention' ] );
         add_action( 'wp_ajax_cfm_execute_db_action', [ $this, 'ajax_execute_db_action' ] );
 
-        // فیلترهای کیفیت و تبدیل فرمت
+        // فیلترهای بهینه‌سازی تصویر
         add_filter( 'wp_handle_upload', [ $this, 'handle_image_conversion' ] );
         add_filter( 'intermediate_image_sizes_advanced', [ $this, 'filter_disabled_image_sizes' ] );
         add_filter( 'jpeg_quality', [ $this, 'filter_jpeg_quality' ] );
@@ -72,14 +75,14 @@ final class Plugin {
         // جایگزینی تصویر در صورت فقدان سایز
         add_filter( 'image_downsize', [ $this, 'handle_image_fallback' ], 10, 3 );
 
+        // استایل و اسکریپت سمت کاربر
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_frontend_assets' ] );
 
         $plugin_file = plugin_basename( __FILE__ );
         add_filter( "plugin_action_links_{$plugin_file}", [ $this, 'add_action_links' ] );
         add_filter( 'plugin_row_meta', [ $this, 'custom_plugin_row_meta' ], 10, 2 );
-        add_action( 'admin_head-plugins.php', [ $this, 'render_plugins_page_styles' ] );
 
-        // تنظیم دوره نگهداری Action Scheduler با اعتبارسنجی
+        // کنترل دوره نگهداری Action Scheduler با فیلتر بومی
         add_filter( 'action_scheduler_retention_period', function( $period ) {
             $days = absint( get_option( self::OPTION_AS_RETENTION, 30 ) );
             return ( $days > 0 ) ? ( $days * DAY_IN_SECONDS ) : $period;
@@ -88,8 +91,8 @@ final class Plugin {
 
     public function register_admin_menu(): void {
         add_menu_page(
-            __( 'بهینه‌ساز رسانه و دیتابیس', 'smart-media-database-optimizer' ),
-            __( 'بهینه‌ساز هوشمند', 'smart-media-database-optimizer' ),
+            __( 'OptiPulse: Media & Database Optimizer', 'optipulse-media-database-optimizer' ),
+            __( 'بهینه‌ساز هوشمند', 'optipulse-media-database-optimizer' ),
             'manage_options',
             'cfm_settings_page',
             [ $this, 'render_settings_page' ],
@@ -99,72 +102,15 @@ final class Plugin {
     }
 
     public function add_action_links( array $links ): array {
-        $settings_url = admin_url( 'admin.php?page=cfm_settings_page' );
+        $settings_url  = admin_url( 'admin.php?page=cfm_settings_page' );
         $settings_link = sprintf(
             '<a href="%s" class="cfm-action-btn-settings">%s</a>',
             esc_url( $settings_url ),
-            esc_html__( 'تنظیمات', 'smart-media-database-optimizer' )
+            esc_html__( 'تنظیمات', 'optipulse-media-database-optimizer' )
         );
 
         array_unshift( $links, $settings_link );
         return $links;
-    }
-
-    public function render_plugins_page_styles(): void {
-        ?>
-        <style>
-            .cfm-action-btn-settings {
-                display: inline-block !important;
-                background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-                color: #ffffff !important;
-                font-weight: bold !important;
-                padding: 2px 10px !important;
-                border-radius: 4px !important;
-                text-decoration: none !important;
-                font-size: 11px !important;
-                line-height: 1.6 !important;
-                box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3) !important;
-                transition: all 0.2s ease-in-out !important;
-            }
-            .cfm-action-btn-settings:hover {
-                background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
-                color: #ffffff !important;
-                transform: translateY(-1px) !important;
-            }
-            .cfm-version-badge {
-                display: inline-block;
-                background-color: #6366f1 !important;
-                color: #ffffff !important;
-                padding: 2px 8px;
-                border-radius: 12px;
-                font-weight: bold;
-                font-size: 11px;
-                box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
-                margin-left: 5px;
-            }
-            .cfm-meta-btn {
-                display: inline-block !important;
-                padding: 3px 10px !important;
-                border-radius: 4px !important;
-                color: #ffffff !important;
-                font-weight: 600 !important;
-                text-decoration: none !important;
-                font-size: 11px !important;
-                line-height: 1.5 !important;
-                transition: all 0.2s ease-in-out !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
-                margin-top: 4px;
-            }
-            .cfm-meta-btn:hover {
-                opacity: 0.9 !important;
-                color: #ffffff !important;
-                transform: translateY(-1px) !important;
-            }
-            .cfm-btn-blue  { background-color: #2563eb !important; }
-            .cfm-btn-green { background-color: #059669 !important; }
-            .cfm-btn-red   { background-color: #dc2626 !important; }
-        </style>
-        <?php
     }
 
     public function custom_plugin_row_meta( array $plugin_meta, string $plugin_file ): array {
@@ -184,48 +130,301 @@ final class Plugin {
         return $plugin_meta;
     }
 
-    public function ajax_save_media_settings(): void {
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => 'دسترسی امنیتی غیرمجاز است.' ] );
+    public function enqueue_admin_assets( string $hook_suffix ): void {
+        if ( 'plugins.php' === $hook_suffix ) {
+            wp_register_style( 'cfm-plugins-inline-css', false, [], self::VERSION );
+            wp_enqueue_style( 'cfm-plugins-inline-css' );
+            $plugins_css = "
+                .cfm-action-btn-settings { display:inline-block !important; background:linear-gradient(135deg, #2563eb, #1d4ed8) !important; color:#ffffff !important; font-weight:bold !important; padding:2px 10px !important; border-radius:4px !important; text-decoration:none !important; font-size:11px !important; line-height:1.6 !important; box-shadow:0 1px 3px rgba(37,99,235,0.3) !important; }
+                .cfm-action-btn-settings:hover { background:linear-gradient(135deg, #1d4ed8, #1e40af) !important; color:#ffffff !important; transform:translateY(-1px) !important; }
+                .cfm-version-badge { display:inline-block; background-color:#6366f1 !important; color:#ffffff !important; padding:2px 8px; border-radius:12px; font-weight:bold; font-size:11px; box-shadow:0 2px 4px rgba(99,102,241,0.2); margin-left:5px; }
+                .cfm-meta-btn { display:inline-block !important; padding:3px 10px !important; border-radius:4px !important; color:#ffffff !important; font-weight:600 !important; text-decoration:none !important; font-size:11px !important; line-height:1.5 !important; box-shadow:0 1px 3px rgba(0,0,0,0.12) !important; margin-top:4px; }
+                .cfm-meta-btn:hover { opacity:0.9 !important; color:#ffffff !important; transform:translateY(-1px) !important; }
+                .cfm-btn-blue { background-color:#2563eb !important; }
+                .cfm-btn-green { background-color:#059669 !important; }
+                .cfm-btn-red { background-color:#dc2626 !important; }
+            ";
+            wp_add_inline_style( 'cfm-plugins-inline-css', $plugins_css );
         }
 
-        check_ajax_referer( 'cfm_settings_nonce', 'cfm_settings_nonce_field' );
-
-        $supports_webp = wp_image_editor_supports( [ 'mime_type' => 'image/webp' ] );
-        $supports_avif = wp_image_editor_supports( [ 'mime_type' => 'image/avif' ] );
-
-        update_option( self::OPTION_ENABLE_ISQM, ! empty( $_POST['enable_isqm'] ) ? 1 : 0, 'no' );
-        update_option( self::OPTION_ENABLE_FANCY, ! empty( $_POST['enable_fancybox'] ) ? 1 : 0, 'yes' );
-        update_option( self::OPTION_ENABLE_FALLBACK, ! empty( $_POST['enable_fallback'] ) ? 1 : 0, 'yes' );
-
-        if ( ! empty( $_POST['enable_isqm'] ) ) {
-            $disabled_sizes = ! empty( $_POST['disabled_image_sizes'] ) ? array_map( 'sanitize_key', (array) $_POST['disabled_image_sizes'] ) : [];
-            update_option( self::OPTION_DISABLED_SIZES, $disabled_sizes, 'no' );
-
-            update_option( self::OPTION_ISQM_JPEG, ! empty( $_POST['cfm_jpeg_100'] ) ? 100 : 90, 'no' );
-            update_option( self::OPTION_ISQM_PNG,  ! empty( $_POST['cfm_png_100'] ) ? 100 : 90, 'no' );
-
-            $convert_format = isset( $_POST['cfm_convert_format'] ) ? sanitize_key( $_POST['cfm_convert_format'] ) : 'none';
-            if ( ( 'webp' === $convert_format && ! $supports_webp ) || ( 'avif' === $convert_format && ! $supports_avif ) ) {
-                $convert_format = 'none';
-            }
-            if ( ! in_array( $convert_format, [ 'none', 'webp', 'avif' ], true ) ) {
-                $convert_format = 'none';
-            }
-            update_option( self::OPTION_CONVERT_FORMAT, $convert_format, 'no' );
-
-            $convert_quality = isset( $_POST['cfm_convert_quality'] ) ? absint( $_POST['cfm_convert_quality'] ) : 80;
-            $convert_quality = max( 1, min( 100, $convert_quality ) );
-            update_option( self::OPTION_CONVERT_QUALITY, $convert_quality, 'no' );
-
-            $disable_guten = ! empty( $_POST['cfm_disable_gutenberg'] ) ? 1 : 0;
-            update_option( self::OPTION_DISABLE_GUTEN, $disable_guten, 'no' );
-            update_option( 'classic-editor-replace', $disable_guten ? 'classic' : false );
+        if ( 'toplevel_page_cfm_settings_page' !== $hook_suffix ) {
+            return;
         }
 
-        delete_transient( 'cfm_all_image_sizes' );
+        wp_register_style( 'cfm-admin-settings-css', false, [], self::VERSION );
+        wp_enqueue_style( 'cfm-admin-settings-css' );
 
-        wp_send_json_success( [ 'message' => 'تنظیمات رسانه با موفقیت ذخیره شد.' ] );
+        $admin_css = "
+            .cfm-wrap { max-width: 1400px; margin-top: 15px; }
+            .cfm-wrap .postbox { border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px; }
+            .cfm-wrap .hndle { border-bottom: 1px solid #f1f5f9; background: #f8fafc; padding: 14px 18px; }
+            .cfm-wrap h2.hndle span { font-weight: 700; color: #0f172a; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+            .cfm-wrap .inside { padding: 24px; }
+            .cfm-toggle-block { margin-bottom: 18px; }
+            .cfm-toggle { display: inline-flex; align-items: center; cursor: pointer; gap: 12px; font-weight: 600; user-select: none; }
+            .cfm-toggle input { display: none; }
+            .cfm-toggle-switch { position: relative; width: 44px; height: 24px; background: #cbd5e1; border-radius: 24px; transition: background 0.25s ease; flex-shrink: 0; }
+            .cfm-toggle-switch::after { content: ''; position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.25s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+            .cfm-toggle input:checked ~ .cfm-toggle-switch { background: #2563eb; }
+            .cfm-toggle input:checked ~ .cfm-toggle-switch::after { transform: translateX(-20px); }
+            .cfm-grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; background: #f8fafc; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; list-style: none; }
+            .cfm-grid-list li { margin: 0; display: flex; align-items: center; }
+            .cfm-grid-list label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+            .cfm-grid-list small { color: #64748b; direction: ltr; display: inline-block; }
+            .cfm-help-note { color: #64748b; font-size: 13px; margin-top: 5px; margin-bottom: 12px; line-height: 1.7; }
+            .cfm-divider { border: 0; height: 1px; background: #f1f5f9; margin: 22px 0; }
+            #cfm-isqm-settings { transition: opacity 0.3s ease; }
+            .cfm-select-format { width: 100%; max-width: 480px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; }
+            .cfm-format-group { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 12px; }
+            .cfm-quality-input-wrapper { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13px; }
+            .cfm-quality-input { width: 80px !important; text-align: center; font-weight: 700; border-radius: 6px !important; padding: 6px !important; border: 1px solid #cbd5e1 !important; }
+            .cfm-highlight-tip { display: flex; align-items: center; gap: 10px; background: #fefce8; border: 1px solid #fef08a; border-right: 4px solid #eab308; border-radius: 8px; padding: 12px 16px; margin: 14px 0; color: #854d0e; font-size: 13px; line-height: 1.6; }
+            .cfm-imagick-warning { display: flex; align-items: flex-start; gap: 10px; background: #fff1f2; border: 1px solid #fecdd3; border-right: 4px solid #e11d48; border-radius: 8px; padding: 12px 16px; margin: 14px 0; color: #9f1239; font-size: 13px; line-height: 1.6; }
+            .cfm-db-alert { background: #fef2f2; border: 1px solid #fecaca; border-right: 5px solid #dc2626; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; color: #7f1d1d; }
+            .cfm-db-alert h3 { margin: 0 0 6px 0; color: #991b1b; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+            .cfm-db-alert p { margin: 0; font-size: 13px; line-height: 1.8; color: #991b1b; }
+            .cfm-db-card-item { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-bottom: 14px; transition: border-color 0.2s ease; }
+            .cfm-db-card-item:hover { border-color: #cbd5e1; }
+            .cfm-db-card-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+            .cfm-db-card-desc { flex: 1; }
+            .cfm-db-card-desc h4 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; }
+            .cfm-db-card-desc p { margin: 0; font-size: 12.5px; color: #64748b; line-height: 1.6; }
+            .cfm-db-card-action { flex-shrink: 0; }
+            .cfm-db-card-action .button { padding: 4px 14px !important; border-radius: 6px !important; font-size: 12.5px !important; height: 36px !important; line-height: 26px !important; }
+            .cfm-table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
+            .cfm-table-stats { width: 100%; border-collapse: collapse; font-size: 12px; background: #ffffff; }
+            .cfm-table-stats th, .cfm-table-stats td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; text-align: right; }
+            .cfm-table-stats th { background: #f8fafc; color: #475569; font-weight: 600; }
+            .cfm-table-stats tr:last-child td { border-bottom: none; }
+            .cfm-badge-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
+            .cfm-badge-good { background: #dcfce7; color: #166534; }
+            .cfm-badge-danger { background: #fee2e2; color: #991b1b; }
+            .cfm-card-response { margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 12px; display: none; line-height: 1.6; }
+            .cfm-card-response.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+            .cfm-card-response.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+            .cfm-card-response.loading { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+            #cfm-media-ajax-notice { margin-top: 15px; display: none; border-radius: 6px; }
+            .cfm-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); z-index: 999999; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.2s ease; }
+            .cfm-modal-overlay.active { opacity: 1; visibility: visible; }
+            .cfm-modal-box { background: #ffffff; border-radius: 12px; width: 90%; max-width: 440px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); transform: scale(0.95); transition: transform 0.2s ease; direction: rtl; }
+            .cfm-modal-overlay.active .cfm-modal-box { transform: scale(1); }
+            .cfm-modal-title { margin: 0 0 10px 0; font-size: 16px; color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+            .cfm-modal-text { font-size: 13px; color: #475569; line-height: 1.7; margin-bottom: 20px; }
+            .cfm-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+            @media screen and (max-width: 782px) {
+                .cfm-wrap { padding-left: 10px; padding-right: 10px; }
+                .cfm-db-card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+                .cfm-db-card-action { width: 100%; }
+                .cfm-db-card-action .button { width: 100%; text-align: center; }
+                .cfm-format-group { flex-direction: column; align-items: stretch; }
+                .cfm-select-format { max-width: 100%; }
+                .cfm-quality-input-wrapper { margin-top: 6px; }
+                .cfm-wrap .inside { padding: 16px; }
+            }
+        ";
+        wp_add_inline_style( 'cfm-admin-settings-css', $admin_css );
+
+        wp_register_script( 'cfm-admin-settings-js', false, [], self::VERSION, true );
+        wp_enqueue_script( 'cfm-admin-settings-js' );
+
+        $admin_js = <<<'JS'
+        document.addEventListener('DOMContentLoaded', function() {
+            var isqmBox = document.querySelector('input[name="enable_isqm"]');
+            var isqmSection = document.getElementById('cfm-isqm-settings');
+            var formatSelect = document.getElementById('cfm_convert_format');
+            var qualityWrapper = document.getElementById('cfm-quality-wrapper');
+
+            if (isqmBox && isqmSection) {
+                isqmBox.addEventListener('change', function() {
+                    if (this.checked) {
+                        isqmSection.style.display = 'block';
+                        setTimeout(function() { isqmSection.style.opacity = '1'; }, 10);
+                    } else {
+                        isqmSection.style.opacity = '0';
+                        setTimeout(function() { isqmSection.style.display = 'none'; }, 300);
+                    }
+                });
+                isqmSection.style.opacity = isqmBox.checked ? '1' : '0';
+            }
+
+            if (formatSelect && qualityWrapper) {
+                formatSelect.addEventListener('change', function() {
+                    if (this.value === 'webp' || this.value === 'avif') {
+                        qualityWrapper.style.display = 'flex';
+                    } else {
+                        qualityWrapper.style.display = 'none';
+                    }
+                });
+            }
+
+            var mediaForm = document.getElementById('cfm-media-settings-form');
+            var mediaSaveBtn = document.getElementById('cfm-save-media-btn');
+            var mediaNotice = document.getElementById('cfm-media-ajax-notice');
+
+            if (mediaForm) {
+                mediaForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    mediaSaveBtn.disabled = true;
+                    mediaSaveBtn.innerText = 'در حال ذخیره...';
+                    mediaNotice.style.display = 'none';
+
+                    var formData = new FormData(mediaForm);
+                    formData.append('action', 'cfm_save_media_settings');
+
+                    fetch(ajaxurl, { method: 'POST', body: formData })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        mediaSaveBtn.disabled = false;
+                        mediaSaveBtn.innerText = 'ذخیره تنظیمات';
+                        mediaNotice.style.display = 'block';
+                        if (data.success) {
+                            mediaNotice.className = 'notice notice-success is-dismissible';
+                            mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
+                            setTimeout(function() {
+                                mediaNotice.style.transition = 'opacity 0.5s ease';
+                                mediaNotice.style.opacity = '0';
+                                setTimeout(function() { mediaNotice.style.display = 'none'; mediaNotice.style.opacity = '1'; }, 500);
+                            }, 4000);
+                        } else {
+                            mediaNotice.className = 'notice notice-error is-dismissible';
+                            mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
+                        }
+                    })
+                    .catch(function() {
+                        mediaSaveBtn.disabled = false;
+                        mediaSaveBtn.innerText = 'ذخیره تنظیمات';
+                        mediaNotice.style.display = 'block';
+                        mediaNotice.className = 'notice notice-error is-dismissible';
+                        mediaNotice.innerHTML = '<p>خطا در برقراری ارتباط با سرور.</p>';
+                    });
+                });
+            }
+
+            var asSaveBtn = document.getElementById('cfm-save-as-btn');
+            var asInput = document.getElementById('cfm_as_retention_input');
+            var asResponse = document.getElementById('cfm-as-card-response');
+            var asNonce = window.cfmAdminVars ? window.cfmAdminVars.asNonce : '';
+
+            if (asSaveBtn && asInput && asResponse) {
+                asSaveBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    asSaveBtn.disabled = true;
+                    asResponse.style.display = 'block';
+                    asResponse.className = 'cfm-card-response loading';
+                    asResponse.innerText = 'در حال ذخیره دوره نگهداری...';
+
+                    var params = new URLSearchParams();
+                    params.append('action', 'cfm_save_as_retention');
+                    params.append('days', asInput.value);
+                    params.append('security', asNonce);
+
+                    fetch(ajaxurl, { method: 'POST', body: params })
+                    .then(function(res) { return res.json(); })
+                    .then(function(data) {
+                        asSaveBtn.disabled = false;
+                        if (data.success) {
+                            asResponse.className = 'cfm-card-response success';
+                            asResponse.innerText = '✅ ' + data.data.message;
+                            setTimeout(function() { asResponse.style.display = 'none'; }, 3500);
+                        } else {
+                            asResponse.className = 'cfm-card-response error';
+                            asResponse.innerText = '❌ ' + data.data.message;
+                        }
+                    })
+                    .catch(function() {
+                        asSaveBtn.disabled = false;
+                        asResponse.className = 'cfm-card-response error';
+                        asResponse.innerText = '❌ خطا در ارسال درخواست به سرور.';
+                    });
+                });
+            }
+
+            var modal = document.getElementById('cfm-confirm-modal');
+            var modalDesc = document.getElementById('cfm-modal-desc');
+            var modalConfirm = document.getElementById('cfm-modal-confirm');
+            var modalCancel = document.getElementById('cfm-modal-cancel');
+            var pendingCallback = null;
+
+            function openConfirmModal(text, callback) {
+                modalDesc.innerText = text;
+                pendingCallback = callback;
+                modal.classList.add('active');
+            }
+
+            function closeModal() {
+                modal.classList.remove('active');
+                pendingCallback = null;
+            }
+
+            if (modalCancel && modalConfirm) {
+                modalCancel.addEventListener('click', closeModal);
+                modalConfirm.addEventListener('click', function() {
+                    if (typeof pendingCallback === 'function') {
+                        pendingCallback();
+                    }
+                    closeModal();
+                });
+            }
+
+            var dbButtons = document.querySelectorAll('.cfm-ajax-db-btn');
+            var dbNonce = window.cfmAdminVars ? window.cfmAdminVars.dbNonce : '';
+
+            dbButtons.forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var confirmMsg = btn.getAttribute('data-confirm');
+                    var action = btn.getAttribute('data-action');
+                    var card = btn.closest('.cfm-db-card-item');
+                    var responseBox = card.querySelector('.cfm-card-response');
+
+                    function runAction() {
+                        btn.disabled = true;
+                        responseBox.style.display = 'block';
+                        responseBox.className = 'cfm-card-response loading';
+                        responseBox.innerText = '⏳ در حال اجرای عملیات پاک‌سازی دیتابیس...';
+
+                        var params = new URLSearchParams();
+                        params.append('action', 'cfm_execute_db_action');
+                        params.append('db_action', action);
+                        params.append('security', dbNonce);
+
+                        fetch(ajaxurl, { method: 'POST', body: params })
+                        .then(function(res) { return res.json(); })
+                        .then(function(data) {
+                            btn.disabled = false;
+                            if (data.success) {
+                                responseBox.className = 'cfm-card-response success';
+                                responseBox.innerText = '✅ ' + data.data.message;
+                            } else {
+                                responseBox.className = 'cfm-card-response error';
+                                responseBox.innerText = '❌ ' + data.data.message;
+                            }
+                        })
+                        .catch(function() {
+                            btn.disabled = false;
+                            responseBox.className = 'cfm-card-response error';
+                            responseBox.innerText = '❌ خطا در ارسال درخواست به سرور.';
+                        });
+                    }
+
+                    if (confirmMsg) {
+                        openConfirmModal(confirmMsg, runAction);
+                    } else {
+                        runAction();
+                    }
+                });
+            });
+        });
+        JS;
+
+        wp_add_inline_script( 'cfm-admin-settings-js', $admin_js );
+
+        $inline_vars = sprintf(
+            'window.cfmAdminVars = { dbNonce: %s, asNonce: %s };',
+            wp_json_encode( wp_create_nonce( 'cfm_db_optimization_nonce' ) ),
+            wp_json_encode( wp_create_nonce( 'cfm_as_retention_nonce' ) )
+        );
+        wp_add_inline_script( 'cfm-admin-settings-js', $inline_vars, 'before' );
     }
 
     public function ajax_save_as_retention(): void {
@@ -257,100 +456,77 @@ final class Plugin {
 
         switch ( $action ) {
             case 'clean_revisions':
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q1 = $wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_type = 'revision'" );
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q2 = $wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_status = 'auto-draft'" );
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q3 = $wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_status = 'trash'" );
                 $affected = (int) $q1 + (int) $q2 + (int) $q3;
                 wp_send_json_success( [ 'message' => "رونوشت‌ها و زباله‌دان پاک‌سازی شدند. ردیف‌های حذف‌شده: {$affected}" ] );
                 break;
 
             case 'clean_orphan_postmeta':
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $affected = $wpdb->query( "DELETE pm FROM {$wpdb->postmeta} pm LEFT JOIN {$wpdb->posts} wp ON wp.ID = pm.post_id WHERE wp.ID IS NULL" );
                 wp_send_json_success( [ 'message' => 'متادیتاهای بدون والد حذف شدند. تعداد: ' . (int) $affected ] );
                 break;
 
             case 'clean_comments':
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q1 = $wpdb->query( "DELETE FROM {$wpdb->comments} WHERE comment_approved = 'spam' OR comment_approved = 'trash'" );
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q2 = $wpdb->query( "DELETE cm FROM {$wpdb->commentmeta} cm LEFT JOIN {$wpdb->comments} c ON c.comment_ID = cm.comment_id WHERE c.comment_ID IS NULL" );
                 $affected = (int) $q1 + (int) $q2;
                 wp_send_json_success( [ 'message' => "دیدگاه‌های هرزنامه و زباله‌دان پاک شدند. تعداد: {$affected}" ] );
                 break;
 
             case 'clean_transients':
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q1 = $wpdb->query( "DELETE a, b FROM {$wpdb->options} a, {$wpdb->options} b WHERE a.option_name LIKE '%_transient_%' AND a.option_name NOT LIKE '%_transient_timeout_%' AND b.option_name = CONCAT('_transient_timeout_', SUBSTRING(a.option_name, 12)) AND b.option_value < UNIX_TIMESTAMP()" );
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q2 = $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_%' AND option_value < UNIX_TIMESTAMP()" );
                 $affected = (int) $q1 + (int) $q2;
                 wp_send_json_success( [ 'message' => "ترنزینت‌های منقضی حذف شدند. تعداد: {$affected}" ] );
                 break;
 
             case 'clean_terms':
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q1 = $wpdb->query( "DELETE tr FROM {$wpdb->term_relationships} tr LEFT JOIN {$wpdb->posts} p ON p.ID = tr.object_id WHERE p.ID IS NULL" );
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database maintenance query.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $q2 = $wpdb->query( "DELETE tm FROM {$wpdb->termmeta} tm LEFT JOIN {$wpdb->terms} t ON t.term_id = tm.term_id WHERE t.term_id IS NULL" );
                 $affected = (int) $q1 + (int) $q2;
                 wp_send_json_success( [ 'message' => "ترم‌ها و دسته‌های بدون استفاده حذف شدند. تعداد: {$affected}" ] );
                 break;
 
             case 'optimize_tables':
-                $allowed_core_tables = [
-                    $wpdb->posts,
-                    $wpdb->postmeta,
-                    $wpdb->comments,
-                    $wpdb->commentmeta,
-                    $wpdb->terms,
-                    $wpdb->term_taxonomy,
-                    $wpdb->term_relationships,
-                    $wpdb->options,
-                ];
-                foreach ( $allowed_core_tables as $tbl ) {
-                    $table_name = sanitize_key( $tbl );
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Core table identifier explicitly sanitized and safe.
-                    $wpdb->query( "OPTIMIZE TABLE `{$table_name}`" );
-                }
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $wpdb->query( "OPTIMIZE TABLE {$wpdb->posts}, {$wpdb->postmeta}, {$wpdb->comments}, {$wpdb->commentmeta}, {$wpdb->terms}, {$wpdb->term_taxonomy}, {$wpdb->term_relationships}, {$wpdb->options}" );
                 wp_send_json_success( [ 'message' => '۸ جدول کلیدی وردپرس با موفقیت Defragment و بهینه‌سازی شدند.' ] );
                 break;
 
             case 'clean_actionscheduler':
-                $as_actions = $wpdb->prefix . 'actionscheduler_actions';
-                $as_logs    = $wpdb->prefix . 'actionscheduler_logs';
-                $as_groups  = $wpdb->prefix . 'actionscheduler_groups';
-                $as_claims  = $wpdb->prefix . 'actionscheduler_claims';
+                $table_actions = $wpdb->prefix . 'actionscheduler_actions';
 
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database schema query.
-                if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $as_actions ) ) === $as_actions ) {
-                    $tbl_actions = sanitize_key( $as_actions );
-                    $tbl_logs    = sanitize_key( $as_logs );
-                    $tbl_groups  = sanitize_key( $as_groups );
-                    $tbl_claims  = sanitize_key( $as_claims );
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_actions ) ) === $table_actions ) {
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                    $q1 = $wpdb->query( $wpdb->prepare( "DELETE l FROM {$wpdb->prefix}actionscheduler_logs l INNER JOIN {$wpdb->prefix}actionscheduler_actions a ON l.action_id = a.action_id WHERE a.status IN (%s, %s, %s)", 'complete', 'failed', 'canceled' ) );
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                    $q2 = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}actionscheduler_actions WHERE status IN (%s, %s, %s)", 'complete', 'failed', 'canceled' ) );
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table identifiers safely sanitized.
-                    $q1 = $wpdb->query( "DELETE l FROM `{$tbl_logs}` l INNER JOIN `{$tbl_actions}` a ON l.action_id = a.action_id WHERE a.status IN ('complete', 'failed', 'canceled')" );
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table identifiers safely sanitized.
-                    $q2 = $wpdb->query( "DELETE FROM `{$tbl_actions}` WHERE status IN ('complete', 'failed', 'canceled')" );
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                    $wpdb->query( "OPTIMIZE TABLE {$wpdb->prefix}actionscheduler_actions, {$wpdb->prefix}actionscheduler_logs" );
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table identifiers safely sanitized.
-                    $wpdb->query( "OPTIMIZE TABLE `{$tbl_actions}`" );
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table identifiers safely sanitized.
-                    $wpdb->query( "OPTIMIZE TABLE `{$tbl_logs}`" );
-
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database schema query.
-                    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $as_groups ) ) === $as_groups ) {
-                        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table identifiers safely sanitized.
-                        $wpdb->query( "OPTIMIZE TABLE `{$tbl_groups}`" );
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->prefix . 'actionscheduler_groups' ) ) === ( $wpdb->prefix . 'actionscheduler_groups' ) ) {
+                        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                        $wpdb->query( "OPTIMIZE TABLE {$wpdb->prefix}actionscheduler_groups" );
                     }
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Direct database schema query.
-                    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $as_claims ) ) === $as_claims ) {
-                        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table identifiers safely sanitized.
-                        $wpdb->query( "OPTIMIZE TABLE `{$tbl_claims}`" );
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                    if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->prefix . 'actionscheduler_claims' ) ) === ( $wpdb->prefix . 'actionscheduler_claims' ) ) {
+                        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                        $wpdb->query( "OPTIMIZE TABLE {$wpdb->prefix}actionscheduler_claims" );
                     }
                     $affected = (int) $q1 + (int) $q2;
                     wp_send_json_success( [ 'message' => "لاگ‌ها و اکشن‌های تاریخ‌گذشته ووکامرس پاک شدند. تعداد: {$affected}" ] );
@@ -376,9 +552,9 @@ final class Plugin {
         $supports_avif = wp_image_editor_supports( [ 'mime_type' => 'image/avif' ] );
         $has_imagick   = extension_loaded( 'imagick' ) && class_exists( '\Imagick', false );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Diagnostic calculation query.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $autoload_size_kb = (float) $wpdb->get_var( "SELECT SUM(LENGTH(option_value)) / 1024 FROM {$wpdb->options} WHERE autoload = 'yes' OR autoload = 'on'" );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Diagnostic calculation query.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $top_autoloads    = $wpdb->get_results( "SELECT option_name, LENGTH(option_value) AS option_size_bytes FROM {$wpdb->options} WHERE autoload = 'yes' OR autoload = 'on' ORDER BY option_size_bytes DESC LIMIT 10" );
 
         $enable_isqm      = get_option( self::OPTION_ENABLE_ISQM, 0 );
@@ -394,109 +570,8 @@ final class Plugin {
         $as_retention     = absint( get_option( self::OPTION_AS_RETENTION, 30 ) );
         ?>
 
-        <style>
-            .cfm-wrap { max-width: 1400px; margin-top: 15px; }
-            .cfm-wrap .postbox { border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 24px; }
-            .cfm-wrap .hndle { border-bottom: 1px solid #f1f5f9; background: #f8fafc; padding: 14px 18px; }
-            .cfm-wrap h2.hndle span { font-weight: 700; color: #0f172a; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-            .cfm-wrap .inside { padding: 24px; }
-            
-            .cfm-toggle-block { margin-bottom: 18px; }
-            .cfm-toggle { display: inline-flex; align-items: center; cursor: pointer; gap: 12px; font-weight: 600; user-select: none; }
-            .cfm-toggle input { display: none; }
-            .cfm-toggle-switch { position: relative; width: 44px; height: 24px; background: #cbd5e1; border-radius: 24px; transition: background 0.25s ease; flex-shrink: 0; }
-            .cfm-toggle-switch::after { content: ''; position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.25s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
-            .cfm-toggle input:checked ~ .cfm-toggle-switch { background: #2563eb; }
-            .cfm-toggle input:checked ~ .cfm-toggle-switch::after { transform: translateX(-20px); }
-
-            .cfm-grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; background: #f8fafc; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; list-style: none; }
-            .cfm-grid-list li { margin: 0; display: flex; align-items: center; }
-            .cfm-grid-list label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
-            .cfm-grid-list small { color: #64748b; direction: ltr; display: inline-block; }
-            .cfm-help-note { color: #64748b; font-size: 13px; margin-top: 5px; margin-bottom: 12px; line-height: 1.7; }
-            .cfm-divider { border: 0; height: 1px; background: #f1f5f9; margin: 22px 0; }
-            #cfm-isqm-settings { transition: opacity 0.3s ease; }
-            .cfm-select-format { width: 100%; max-width: 480px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px; }
-            .cfm-format-group { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 12px; }
-            .cfm-quality-input-wrapper { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 13px; }
-            .cfm-quality-input { width: 80px !important; text-align: center; font-weight: 700; border-radius: 6px !important; padding: 6px !important; border: 1px solid #cbd5e1 !important; }
-            
-            .cfm-highlight-tip { display: flex; align-items: center; gap: 10px; background: #fefce8; border: 1px solid #fef08a; border-right: 4px solid #eab308; border-radius: 8px; padding: 12px 16px; margin: 14px 0; color: #854d0e; font-size: 13px; line-height: 1.6; }
-            .cfm-imagick-warning { display: flex; align-items: flex-start; gap: 10px; background: #fff1f2; border: 1px solid #fecdd3; border-right: 4px solid #e11d48; border-radius: 8px; padding: 12px 16px; margin: 14px 0; color: #9f1239; font-size: 13px; line-height: 1.6; }
-
-            .cfm-db-alert { background: #fef2f2; border: 1px solid #fecaca; border-right: 5px solid #dc2626; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; color: #7f1d1d; }
-            .cfm-db-alert h3 { margin: 0 0 6px 0; color: #991b1b; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-            .cfm-db-alert p { margin: 0; font-size: 13px; line-height: 1.8; color: #991b1b; }
-            
-            .cfm-db-card-item { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin-bottom: 14px; transition: border-color 0.2s ease; }
-            .cfm-db-card-item:hover { border-color: #cbd5e1; }
-            .cfm-db-card-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-            .cfm-db-card-desc { flex: 1; }
-            .cfm-db-card-desc h4 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; }
-            .cfm-db-card-desc p { margin: 0; font-size: 12.5px; color: #64748b; line-height: 1.6; }
-            .cfm-db-card-action { flex-shrink: 0; }
-            .cfm-db-card-action .button { padding: 4px 14px !important; border-radius: 6px !important; font-size: 12.5px !important; height: 36px !important; line-height: 26px !important; }
-
-            .cfm-table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
-            .cfm-table-stats { width: 100%; border-collapse: collapse; font-size: 12px; background: #ffffff; }
-            .cfm-table-stats th, .cfm-table-stats td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; text-align: right; }
-            .cfm-table-stats th { background: #f8fafc; color: #475569; font-weight: 600; }
-            .cfm-table-stats tr:last-child td { border-bottom: none; }
-            .cfm-badge-status { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
-            .cfm-badge-good { background: #dcfce7; color: #166534; }
-            .cfm-badge-danger { background: #fee2e2; color: #991b1b; }
-
-            .cfm-card-response { margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 12px; display: none; line-height: 1.6; }
-            .cfm-card-response.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-            .cfm-card-response.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-            .cfm-card-response.loading { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-            #cfm-media-ajax-notice { margin-top: 15px; display: none; border-radius: 6px; }
-
-            /* پاپ‌آپ مدرن تایید عملیات دیتابیس */
-            .cfm-modal-overlay {
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(15, 23, 42, 0.6);
-                backdrop-filter: blur(4px);
-                z-index: 999999;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                opacity: 0;
-                visibility: hidden;
-                transition: all 0.2s ease;
-            }
-            .cfm-modal-overlay.active { opacity: 1; visibility: visible; }
-            .cfm-modal-box {
-                background: #ffffff;
-                border-radius: 12px;
-                width: 90%;
-                max-width: 440px;
-                padding: 24px;
-                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-                transform: scale(0.95);
-                transition: transform 0.2s ease;
-                direction: rtl;
-            }
-            .cfm-modal-overlay.active .cfm-modal-box { transform: scale(1); }
-            .cfm-modal-title { margin: 0 0 10px 0; font-size: 16px; color: #0f172a; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-            .cfm-modal-text { font-size: 13px; color: #475569; line-height: 1.7; margin-bottom: 20px; }
-            .cfm-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
-
-            @media screen and (max-width: 782px) {
-                .cfm-wrap { padding-left: 10px; padding-right: 10px; }
-                .cfm-db-card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-                .cfm-db-card-action { width: 100%; }
-                .cfm-db-card-action .button { width: 100%; text-align: center; }
-                .cfm-format-group { flex-direction: column; align-items: stretch; }
-                .cfm-select-format { max-width: 100%; }
-                .cfm-quality-input-wrapper { margin-top: 6px; }
-                .cfm-wrap .inside { padding: 16px; }
-            }
-        </style>
-
         <div class="wrap cfm-wrap">
-            <h1 class="wp-heading-inline">بهینه‌ساز هوشمند رسانه و دیتابیس</h1>
+            <h1 class="wp-heading-inline">OptiPulse: بهینه‌ساز هوشمند رسانه و دیتابیس</h1>
             <hr class="wp-header-end">
 
             <div id="poststuff">
@@ -821,212 +896,6 @@ final class Plugin {
                 </div>
             </div>
         </div>
-
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var isqmBox = document.querySelector('input[name="enable_isqm"]');
-            var isqmSection = document.getElementById('cfm-isqm-settings');
-            var formatSelect = document.getElementById('cfm_convert_format');
-            var qualityWrapper = document.getElementById('cfm-quality-wrapper');
-
-            if (isqmBox && isqmSection) {
-                isqmBox.addEventListener('change', function() {
-                    if (this.checked) {
-                        isqmSection.style.display = 'block';
-                        setTimeout(function() { isqmSection.style.opacity = '1'; }, 10);
-                    } else {
-                        isqmSection.style.opacity = '0';
-                        setTimeout(function() { isqmSection.style.display = 'none'; }, 300);
-                    }
-                });
-                isqmSection.style.opacity = isqmBox.checked ? '1' : '0';
-            }
-
-            if (formatSelect && qualityWrapper) {
-                formatSelect.addEventListener('change', function() {
-                    if (this.value === 'webp' || this.value === 'avif') {
-                        qualityWrapper.style.display = 'flex';
-                    } else {
-                        qualityWrapper.style.display = 'none';
-                    }
-                });
-            }
-
-            // AJAX: ثبت تنظیمات رسانه
-            var mediaForm = document.getElementById('cfm-media-settings-form');
-            var mediaSaveBtn = document.getElementById('cfm-save-media-btn');
-            var mediaNotice = document.getElementById('cfm-media-ajax-notice');
-
-            if (mediaForm) {
-                mediaForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    mediaSaveBtn.disabled = true;
-                    mediaSaveBtn.innerText = 'در حال ذخیره...';
-                    mediaNotice.style.display = 'none';
-
-                    var formData = new FormData(mediaForm);
-                    formData.append('action', 'cfm_save_media_settings');
-
-                    fetch(ajaxurl, {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        mediaSaveBtn.disabled = false;
-                        mediaSaveBtn.innerText = 'ذخیره تنظیمات';
-                        mediaNotice.style.display = 'block';
-                        if (data.success) {
-                            mediaNotice.className = 'notice notice-success is-dismissible';
-                            mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
-                            setTimeout(function() {
-                                mediaNotice.style.transition = 'opacity 0.5s ease';
-                                mediaNotice.style.opacity = '0';
-                                setTimeout(function() {
-                                    mediaNotice.style.display = 'none';
-                                    mediaNotice.style.opacity = '1';
-                                }, 500);
-                            }, 4000);
-                        } else {
-                            mediaNotice.className = 'notice notice-error is-dismissible';
-                            mediaNotice.innerHTML = '<p>' + data.data.message + '</p>';
-                        }
-                    })
-                    .catch(err => {
-                        mediaSaveBtn.disabled = false;
-                        mediaSaveBtn.innerText = 'ذخیره تنظیمات';
-                        mediaNotice.style.display = 'block';
-                        mediaNotice.className = 'notice notice-error is-dismissible';
-                        mediaNotice.innerHTML = '<p>خطا در برقراری ارتباط با سرور.</p>';
-                    });
-                });
-            }
-
-            // AJAX: ذخیره مستقل دوره نگهداری Action Scheduler
-            var asSaveBtn = document.getElementById('cfm-save-as-btn');
-            var asInput = document.getElementById('cfm_as_retention_input');
-            var asResponse = document.getElementById('cfm-as-card-response');
-            var asNonce = '<?php echo esc_js( wp_create_nonce( 'cfm_as_retention_nonce' ) ); ?>';
-
-            if (asSaveBtn && asInput && asResponse) {
-                asSaveBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    asSaveBtn.disabled = true;
-                    asResponse.style.display = 'block';
-                    asResponse.className = 'cfm-card-response loading';
-                    asResponse.innerText = 'در حال ذخیره دوره نگهداری...';
-
-                    var params = new URLSearchParams();
-                    params.append('action', 'cfm_save_as_retention');
-                    params.append('days', asInput.value);
-                    params.append('security', asNonce);
-
-                    fetch(ajaxurl, {
-                        method: 'POST',
-                        body: params
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        asSaveBtn.disabled = false;
-                        if (data.success) {
-                            asResponse.className = 'cfm-card-response success';
-                            asResponse.innerText = '✅ ' + data.data.message;
-                            setTimeout(function() {
-                                asResponse.style.display = 'none';
-                            }, 3500);
-                        } else {
-                            asResponse.className = 'cfm-card-response error';
-                            asResponse.innerText = '❌ ' + data.data.message;
-                        }
-                    })
-                    .catch(err => {
-                        asSaveBtn.disabled = false;
-                        asResponse.className = 'cfm-card-response error';
-                        asResponse.innerText = '❌ خطا در ارسال درخواست به سرور.';
-                    });
-                });
-            }
-
-            // مدیریت مودال تایید اختصاصی
-            var modal = document.getElementById('cfm-confirm-modal');
-            var modalDesc = document.getElementById('cfm-modal-desc');
-            var modalConfirm = document.getElementById('cfm-modal-confirm');
-            var modalCancel = document.getElementById('cfm-modal-cancel');
-            var pendingCallback = null;
-
-            function openConfirmModal(text, callback) {
-                modalDesc.innerText = text;
-                pendingCallback = callback;
-                modal.classList.add('active');
-            }
-
-            function closeModal() {
-                modal.classList.remove('active');
-                pendingCallback = null;
-            }
-
-            modalCancel.addEventListener('click', closeModal);
-            modalConfirm.addEventListener('click', function() {
-                if (typeof pendingCallback === 'function') {
-                    pendingCallback();
-                }
-                closeModal();
-            });
-
-            // AJAX: اجرای عملیات دیتابیس
-            var dbButtons = document.querySelectorAll('.cfm-ajax-db-btn');
-            var dbNonce = '<?php echo esc_js( wp_create_nonce( 'cfm_db_optimization_nonce' ) ); ?>';
-
-            dbButtons.forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var confirmMsg = btn.getAttribute('data-confirm');
-                    var action = btn.getAttribute('data-action');
-                    var card = btn.closest('.cfm-db-card-item');
-                    var responseBox = card.querySelector('.cfm-card-response');
-
-                    function runAction() {
-                        btn.disabled = true;
-                        responseBox.style.display = 'block';
-                        responseBox.className = 'cfm-card-response loading';
-                        responseBox.innerText = '⏳ در حال اجرای عملیات پاک‌سازی دیتابیس...';
-
-                        var params = new URLSearchParams();
-                        params.append('action', 'cfm_execute_db_action');
-                        params.append('db_action', action);
-                        params.append('security', dbNonce);
-
-                        fetch(ajaxurl, {
-                            method: 'POST',
-                            body: params
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            btn.disabled = false;
-                            if (data.success) {
-                                responseBox.className = 'cfm-card-response success';
-                                responseBox.innerText = '✅ ' + data.data.message;
-                            } else {
-                                responseBox.className = 'cfm-card-response error';
-                                responseBox.innerText = '❌ ' + data.data.message;
-                            }
-                        })
-                        .catch(err => {
-                            btn.disabled = false;
-                            responseBox.className = 'cfm-card-response error';
-                            responseBox.innerText = '❌ خطا در ارسال درخواست به سرور.';
-                        });
-                    }
-
-                    if (confirmMsg) {
-                        openConfirmModal(confirmMsg, runAction);
-                    } else {
-                        runAction();
-                    }
-                });
-            });
-        });
-        </script>
         <?php
     }
 
@@ -1061,17 +930,23 @@ final class Plugin {
         $candidate_name = "{$filename_without_ext}.{$target_ext}";
         $candidate_path = $dir . '/' . $candidate_name;
 
+        clearstatcache( true, $candidate_path );
+
         if ( ! file_exists( $candidate_path ) ) {
             return $candidate_path;
         }
 
-        // محدود کردن حلقه برای بهینه‌سازی بار I/O سرور و جلوگیری از هرزگردی CPU
         $counter = 1;
-        while ( $counter <= 50 && file_exists( $dir . '/' . "{$filename_without_ext}-{$counter}.{$target_ext}" ) ) {
+        while ( $counter <= 50 ) {
+            $test_path = $dir . '/' . "{$filename_without_ext}-{$counter}.{$target_ext}";
+            clearstatcache( true, $test_path );
+            if ( ! file_exists( $test_path ) ) {
+                return $test_path;
+            }
             $counter++;
         }
 
-        return $dir . '/' . "{$filename_without_ext}-{$counter}.{$target_ext}";
+        return $dir . '/' . "{$filename_without_ext}-" . uniqid() . ".{$target_ext}";
     }
 
     public function handle_image_conversion( array $upload ): array {
@@ -1166,9 +1041,20 @@ final class Plugin {
         if ( is_admin() || $return || 'full' === $size || ! is_string( $size ) ) return $return;
         if ( ! get_option( self::OPTION_ENABLE_FALLBACK ) ) return $return;
 
-        $meta = wp_get_attachment_metadata( $attachment_id );
-        if ( ! is_array( $meta ) || empty( $meta['sizes'] ) || ! isset( $meta['sizes'][$size] ) ) {
-            $img_url = wp_get_attachment_url( $attachment_id );
+        $attachment_id = (int) $attachment_id;
+
+        if ( ! isset( self::$fallback_memory_cache[ $attachment_id ] ) ) {
+            self::$fallback_memory_cache[ $attachment_id ] = [
+                'meta' => wp_get_attachment_metadata( $attachment_id ),
+                'url'  => wp_get_attachment_url( $attachment_id ),
+            ];
+        }
+
+        $cached_data = self::$fallback_memory_cache[ $attachment_id ];
+        $meta        = $cached_data['meta'];
+
+        if ( ! is_array( $meta ) || empty( $meta['sizes'] ) || ! isset( $meta['sizes'][ $size ] ) ) {
+            $img_url = $cached_data['url'];
             if ( $img_url ) {
                 $width  = isset( $meta['width'] ) ? (int) $meta['width'] : 0;
                 $height = isset( $meta['height'] ) ? (int) $meta['height'] : 0;
