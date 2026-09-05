@@ -124,7 +124,7 @@ final class Plugin {
             $plugin_meta = array_values( $plugin_meta );
 
             $plugin_meta[] = '<a href="https://aminarjmand.com" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-blue">بدست امین ارجمند</a>';
-            $plugin_meta[] = '<a href="https://demo.aminarjmand.com/Smart-Media-Database-Optimizer/" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-green">دیدن خانهٔ افزونه</a>';
+            $plugin_meta[] = '<a href="https://demo.aminarjmand.com/optipulse-media-database-optimizer/" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-green">دیدن خانهٔ افزونه</a>';
             $plugin_meta[] = '<a href="https://mohandeseit.com" target="_blank" rel="noopener noreferrer" class="cfm-meta-btn cfm-btn-red">سایت سازنده</a>';
         }
         return $plugin_meta;
